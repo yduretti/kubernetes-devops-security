@@ -1,84 +1,109 @@
 #!/bin/bash
 
+set -e  # Para o script em caso de erro
+
 echo ".........----------------#################._.-.-INSTALL-.-._.#################----------------........."
+
+# Configuração do prompt
 PS1='\[\e[01;36m\]\u\[\e[01;37m\]@\[\e[01;33m\]\H\[\e[01;37m\]:\[\e[01;32m\]\w\[\e[01;37m\]\$\[\033[0;37m\] '
-echo "PS1='\[\e[01;36m\]\u\[\e[01;37m\]@\[\e[01;33m\]\H\[\e[01;37m\]:\[\e[01;32m\]\w\[\e[01;37m\]\$\[\033[0;37m\] '" >> ~/.bashrc
+echo "PS1='$PS1'" >> ~/.bashrc
 sed -i '1s/^/force_color_prompt=yes\n/' ~/.bashrc
 source ~/.bashrc
 
-apt-get autoremove -y  #removes the packages that are no longer needed
-apt-get update
-systemctl daemon-reload
+# Atualização e remoção de pacotes desnecessários
+sudo apt-get autoremove -y  
+sudo apt-get update
+sudo systemctl daemon-reload
 
-curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-cat <<EOF > /etc/apt/sources.list.d/kubernetes.list
-deb http://apt.kubernetes.io/ kubernetes-xenial main
-EOF
+# Adicionando chave do repositório Kubernetes (método atualizado)
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo tee /etc/apt/keyrings/kubernetes-archive-keyring.gpg > /dev/null
 
+# Adicionando repositório Kubernetes
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+# Definição da versão do Kubernetes
 KUBE_VERSION=1.20.0
-apt-get update
-apt-get install -y docker.io vim build-essential jq python3-pip kubelet=${KUBE_VERSION}-00 kubectl=${KUBE_VERSION}-00 kubernetes-cni=0.8.7-00 kubeadm=${KUBE_VERSION}-00
+
+# Instalação de pacotes essenciais
+sudo apt-get update
+sudo apt-get install -y docker.io vim build-essential jq python3-pip \
+    kubelet=${KUBE_VERSION}-00 kubectl=${KUBE_VERSION}-00 \
+    kubernetes-cni=0.8.7-00 kubeadm=${KUBE_VERSION}-00
+
 pip3 install jc
 
-### UUID of VM 
-### comment below line if this Script is not executed on Cloud based VMs
-jc dmidecode | jq .[1].values.uuid -r
+# UUID da VM (evita erro caso `dmidecode` não esteja disponível)
+if command -v dmidecode &> /dev/null; then
+    jc dmidecode | jq .[1].values.uuid -r
+fi
 
-cat > /etc/docker/daemon.json <<EOF
+# Configuração do Docker
+sudo mkdir -p /etc/docker
+cat <<EOF | sudo tee /etc/docker/daemon.json
 {
   "exec-opts": ["native.cgroupdriver=systemd"],
   "log-driver": "json-file",
   "storage-driver": "overlay2"
 }
 EOF
-mkdir -p /etc/systemd/system/docker.service.d
 
-systemctl daemon-reload
-systemctl restart docker
-systemctl enable docker
-systemctl enable kubelet
-systemctl start kubelet
+sudo mkdir -p /etc/systemd/system/docker.service.d
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+sudo systemctl enable docker
+sudo systemctl enable kubelet
+sudo systemctl start kubelet
 
 echo ".........----------------#################._.-.-KUBERNETES-.-._.#################----------------........."
-rm /root/.kube/config
-kubeadm reset -f
 
-# uncomment below line if your host doesnt have minimum requirement of 2 CPU
-# kubeadm init --kubernetes-version=${KUBE_VERSION} --ignore-preflight-errors=NumCPU --skip-token-print
-kubeadm init --kubernetes-version=${KUBE_VERSION} --skip-token-print
+# Reset Kubernetes antes da instalação (caso já tenha sido instalado antes)
+sudo rm -rf /root/.kube/config
+sudo kubeadm reset -f
 
-mkdir -p ~/.kube
-sudo cp -i /etc/kubernetes/admin.conf ~/.kube/config
+# Instalação do cluster Kubernetes
+sudo kubeadm init --kubernetes-version=${KUBE_VERSION} --skip-token-print
 
+# Configuração do kubectl para o usuário atual
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+# Instalação do CNI (rede Kubernetes)
 kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.8.1/weave-daemonset-k8s.yaml
 
-sleep 60
+sleep 60  # Aguarde a configuração da rede
 
-echo "untaint controlplane node"
-kubectl taint node $(kubectl get nodes -o=jsonpath='{.items[].metadata.name}') node.kubernetes.io/not-ready:NoSchedule-
-kubectl taint node $(kubectl get nodes -o=jsonpath='{.items[].metadata.name}') node-role.kubernetes.io/master:NoSchedule-
-kubectl get node -o wide
+# Remover taints do nó para permitir agendamentos
+echo "Removendo taints do nó de controle..."
+kubectl taint node $(kubectl get nodes -o=jsonpath='{.items[0].metadata.name}') node-role.kubernetes.io/control-plane:NoSchedule- --overwrite=true
+kubectl get nodes -o wide
 
+echo ".........----------------#################._.-.-Java e MAVEN-.-._.#################----------------........."
 
-
-echo ".........----------------#################._.-.-Java and MAVEN-.-._.#################----------------........."
+# Instalação do Java e Maven
 sudo apt install openjdk-11-jdk -y
 java -version
 sudo apt install -y maven
 mvn -v
 
-
-
 echo ".........----------------#################._.-.-JENKINS-.-._.#################----------------........."
-wget -q -O - https://pkg.jenkins.io/debian-stable/jenkins.io.key | sudo apt-key add -
-sudo sh -c 'echo deb http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
+
+# Adicionando chave do repositório do Jenkins (método atualizado)
+wget -q -O - https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee /etc/apt/keyrings/jenkins-keyring.asc > /dev/null
+
+# Adicionando repositório do Jenkins
+echo "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" | sudo tee /etc/apt/sources.list.d/jenkins.list
+
+# Instalação do Jenkins
 sudo apt update
 sudo apt install -y jenkins
-systemctl daemon-reload
-systemctl enable jenkins
+sudo systemctl daemon-reload
+sudo systemctl enable jenkins
 sudo systemctl start jenkins
-#sudo systemctl status jenkins
-sudo usermod -a -G docker jenkins
-echo "jenkins ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+# Adicionando Jenkins ao grupo Docker
+sudo usermod -aG docker jenkins
+echo "jenkins ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
 
 echo ".........----------------#################._.-.-COMPLETED-.-._.#################----------------........."
