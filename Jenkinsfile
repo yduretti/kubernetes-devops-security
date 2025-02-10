@@ -3,7 +3,7 @@ pipeline {
   
    environment {
         MAVEN_OPTS = "--add-opens java.base/java.lang=ALL-UNNAMED"
-        DOCKER_IMAGE = "yduretti/devsec-app:latest"
+        DOCKER_IMAGE = 'yduretti/devsec-app:""$GIT_COMMIT""'
       }
 
   stages {
@@ -44,11 +44,19 @@ pipeline {
           }
         }  
 
-        stage('Build and Push Docker Image') {
+        stage('Build Docker Image') {
+            steps {
+              script {
+                DOCKER_IMAGE = "${DOCKER_IMAGE}_$GIT_COMMIT"
+                sh "docker build -t ${DOCKER_IMAGE} ."
+              }                
+            }
+        } 
+
+        stage('Push Docker Image') {
             steps {
                 withDockerRegistry([credentialsId: 'docker-hub', url: 'https://index.docker.io/v1/']) {
-                    sh 'docker build -t ${DOCKER_IMAGE}:""$GIT_COMMIT"" .'
-                    sh 'docker push ${DOCKER_IMAGE}:""$GIT_COMMIT""'
+                    sh "docker push ${DOCKER_IMAGE}"
                 }
             }
         }
