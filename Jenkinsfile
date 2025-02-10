@@ -3,7 +3,11 @@ pipeline {
 
   stages {
       stage('Build Artifact') {
-            steps {
+          environment {
+              MAVEN_OPTS = "--add-opens java.base/java.lang=ALL-UNNAMED"
+          }
+
+          steps {
               script {
                     sh "java -version"  // Confirma se está usando a versão correta
               }
