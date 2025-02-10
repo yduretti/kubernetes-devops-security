@@ -2,7 +2,8 @@ pipeline {
   agent any
   
    environment {
-              MAVEN_OPTS = "--add-opens java.base/java.lang=ALL-UNNAMED"
+        MAVEN_OPTS = "--add-opens java.base/java.lang=ALL-UNNAMED"
+        DOCKER_IMAGE = "yduretti/devsec-app:latest"
       }
 
   stages {
