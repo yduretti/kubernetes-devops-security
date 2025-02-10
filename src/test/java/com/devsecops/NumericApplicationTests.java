@@ -1,55 +1,68 @@
-// package com.devsecops;
+package com.devsecops;
 
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// import org.junit.Test;
-// import org.springframework.beans.factory.annotation.Autowired;
-// import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-// import org.springframework.boot.test.context.SpringBootTest;
-// import org.springframework.test.web.servlet.MockMvc;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.ResponseEntity;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.client.RestTemplate;
 
-// import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-// import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-// import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-// import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-// //import org.junit.jupiter.api.Test;
-// import org.springframework.beans.factory.annotation.Autowired;
-// import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-// import org.springframework.boot.test.context.SpringBootTest;
-// import org.springframework.test.web.servlet.MockMvc;
+@WebMvcTest(NumericController.class)
+@ExtendWith(MockitoExtension.class)
+class NumericControllerTest {
 
-// import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-// import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-// import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-// import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-// //import org.junit.Test;
-// import org.junit.runner.RunWith;
-// import org.springframework.test.context.junit4.SpringRunner;
-// import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+    @Autowired
+    private MockMvc mockMvc;
 
-// @RunWith(SpringRunner.class)
-// @SpringBootTest
-// @AutoConfigureMockMvc
-// public class NumericApplicationTests {
+    @MockBean
+    private RestTemplate restTemplate;
 
-//     @Autowired
-//     private MockMvc mockMvc;
+    @InjectMocks
+    private NumericController numericController;
 
-//     @Test
-//     public void smallerThanOrEqualToFiftyMessage() throws Exception {
-//         this.mockMvc.perform(get("/compare/49")).andDo(print()).andExpect(status().isOk())
-//                 .andExpect(content().string("Smaller than or equal to 50"));
-//     }
+    private static final String BASE_URL = "http://node-service:5000/plusone";
 
-//     @Test
-//     public void greaterThanFiftyMessage() throws Exception {
-//         this.mockMvc.perform(get("/compare/51")).andDo(print()).andExpect(status().isOk())
-//                 .andExpect(content().string("Greater than 50"));
-//     }
-    
-//     @Test
-//     public void welcomeMessage() throws Exception {
-//          this.mockMvc.perform(get("/")).andDo(print()).andExpect(status().isOk());
-//     }
-    
+    @BeforeEach
+    void setUp() {
+        numericController = new NumericController(restTemplate);
+    }
 
-// }
+    @Test
+    void testWelcome() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Kubernetes DevSecOps"));
+    }
+
+    @Test
+    void testCompareToFifty() throws Exception {
+        mockMvc.perform(get("/compare/60"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Greater than 50"));
+
+        mockMvc.perform(get("/compare/40"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Smaller than or equal to 50"));
+    }
+
+    @Test
+    void testIncrement() throws Exception {
+        when(restTemplate.getForEntity(BASE_URL + "/10", String.class))
+                .thenReturn(ResponseEntity.ok("11"));
+
+        mockMvc.perform(get("/increment/10"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("11"));
+    }
+}
