@@ -3,7 +3,7 @@ pipeline {
   
    environment {
         MAVEN_OPTS = "--add-opens java.base/java.lang=ALL-UNNAMED"
-        DOCKER_IMAGE = 'yduretti/devsec-app:""$GIT_COMMIT""'
+        DOCKER_IMAGE = 'yduretti/devsec-app:$GIT_COMMIT'
       }
 
   stages {
