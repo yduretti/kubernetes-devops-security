@@ -3,7 +3,7 @@ pipeline {
   
    environment {
         MAVEN_OPTS = "--add-opens java.base/java.lang=ALL-UNNAMED"
-        DOCKER_IMAGE = 'yduretti/devsec-app:$GIT_COMMIT'
+        DOCKER_IMAGE = 'yduretti/devsec-app:""$GIT_COMMIT""'
       }
 
   stages {
@@ -47,7 +47,6 @@ pipeline {
         stage('Build Docker Image') {
             steps {
               script {
-                DOCKER_IMAGE = "${DOCKER_IMAGE}_$GIT_COMMIT"
                 sh "docker build -t ${DOCKER_IMAGE} ."
               }                
             }
