@@ -3,7 +3,9 @@ pipeline {
   
    environment {
         MAVEN_OPTS = "--add-opens java.base/java.lang=ALL-UNNAMED"
-        DOCKER_IMAGE = 'yduretti/devsec-app:""$GIT_COMMIT""'
+        //DOCKER_IMAGE = 'yduretti/devsec-app:""$GIT_COMMIT""'
+        DOCKER_IMAGE="yduretti/devsec-app:\"$GIT_COMMIT\""
+
       }
 
   stages {
@@ -63,7 +65,10 @@ pipeline {
          stage('kubernetes Deployment - Dev') {
             steps {
                  withKubeConfig([credentialsId: 'kubeconfig']) {
-                  sh "sed -i 's#replace#${DOCKER_IMAGE}#g' k8s_deployment_service.yaml"
+                  //sh "sed -i 's#replace#${DOCKER_IMAGE}#g' k8s_deployment_service.yaml"
+                  echo "sed -i 's#replace#'\"$DOCKER_IMAGE\"'#g' k8s_deployment_service.yaml"
+                  sh "sed -i 's|replace|'\"$DOCKER_IMAGE\"'|g' k8s_deployment_service.yaml"
+                  
                   sh 'kubectl apply -f k8s_deployment_service.yaml'
                 }
             }
