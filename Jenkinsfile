@@ -48,7 +48,7 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('sonarqube') {
+                withSonarQubeEnv('SonarQube') {
                  sh "mvn clean verify sonar:sonar \
                     -Dsonar.projectKey=numeric_app \
                     -Dsonar.projectName='numeric_app' \
