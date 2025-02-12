@@ -46,6 +46,16 @@ pipeline {
           }
         }  
 
+        stage('SonarQube Analysis') {
+            steps {
+                sh "mvn clean verify sonar:sonar \
+                    -Dsonar.projectKey=numeric_app \
+                    -Dsonar.projectName='numeric_app' \
+                    -Dsonar.host.url=http://devsec-ypd.eastus.cloudapp.azure.com:9000 \
+                    -Dsonar.token=sqp_f0633a1166daf0bc86abcba26526a43c5336eb76"
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
               script {
@@ -62,7 +72,7 @@ pipeline {
             }
         }
 
-         stage('kubernetes Deployment - Dev') {
+        stage('kubernetes Deployment - Dev') {
             steps {
                  withKubeConfig([credentialsId: 'kubeconfig']) {
                   //sh "sed -i 's#replace#${DOCKER_IMAGE}#g' k8s_deployment_service.yaml"
