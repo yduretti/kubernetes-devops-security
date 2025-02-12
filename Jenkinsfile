@@ -48,11 +48,15 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                sh "mvn clean verify sonar:sonar \
+                withSonarQubeEnv('sonarqube') {
+                 sh "mvn clean verify sonar:sonar \
                     -Dsonar.projectKey=numeric_app \
                     -Dsonar.projectName='numeric_app' \
                     -Dsonar.host.url=http://devsec-ypd.eastus.cloudapp.azure.com:9000 \
-                    -Dsonar.token=sqp_f0633a1166daf0bc86abcba26526a43c5336eb76"
+                    -Dsonar.token=sqp_f0633a1166daf0bc86abcba26526a43c5336eb76"   
+                }timeout(time: 1, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
             }
         }
 
